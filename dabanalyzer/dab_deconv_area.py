@@ -3,7 +3,7 @@ import os
 import csv
 import timeit
 import json
-from multiprocessing import Pool, cpu_count
+from multiprocessing import Pool, cpu_count, Process
 from functools import partial
 
 import numpy as np
@@ -25,6 +25,10 @@ def parse_arguments():
     """
 
     parser = argparse.ArgumentParser()
+    parser.add_argument("-g", "--gui", required=False, help="Start GUI", action = "store_true")
+    args = parser.parse_known_args()
+    if args[0].gui == True:
+      return args
     parser.add_argument("-p", "--path", required=True, help="Path to the directory or file")
     parser.add_argument("-t", "--thresh", required=False, default=40,
                         type=int, help="Global threshold for DAB-positive area,"
@@ -376,8 +380,32 @@ def plot_group(data_frame, path_output):
     plt.tight_layout()
     plt.savefig(path_output_image, dpi=300)
 
-
 def main():
+    args = parse_arguments()
+    if args[0].gui == True:
+      from .dab_gui import GUI
+      gui = GUI(args[1])
+      while True:
+        if gui.flag:
+          p1 = Process(target = run, args = (gui.args,))
+          p1.start()
+          while p1.is_alive():
+            time.sleep(0.1)
+            if gui.cancel:
+              p1.terminate()
+            gui.loop()
+          gui.notCancel()
+          gui.flag = gui.cancel = False
+        else:
+          time.sleep(0.1)
+          try:
+            gui.loop()
+          except: #TclError:
+            break
+    else:
+      run(args)
+
+def run(args):
     """
     Yor own matrix should be placed here. You can use ImageJ and color deconvolution module for it.
     More information here: http://www.mecourse.com/landinig/software/cdeconv/cdeconv.html
@@ -393,9 +421,6 @@ def main():
 
     # Initialize the global timer
     startTimeGlobal = timeit.default_timer()
-
-    # Parse the arguments
-    args = parse_arguments()
 
     if args.matrix:
         with open(args.matrix) as f:
