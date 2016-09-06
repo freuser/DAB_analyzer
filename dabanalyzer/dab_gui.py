@@ -2,30 +2,34 @@
 import Tkinter
 import tkFileDialog
 import os
-import time
+from time import sleep
 import argparse
+
 import Image, ImageTk
 #from PIL import Image, ImageTk
 
 class GUI:
+  '''This class draw GUI window and set variables for manage calculates'''
 
   def getPath(self, path = None):
-      ext = ('.jpg', '.jpeg', '.gif', '.png')
-      if not path:
-        path = self.init_path.show()
-      if path:
-        self.path = path
-      else:
-        return
-      file_len = 0
-      self.files = [name for name in sorted(os.listdir(self.path))
-              if not os.path.isdir(os.path.join(self.path, name))
-              if name.endswith(ext)]
-      self.dir_list.delete(0, 'end')
-      for i in self.files:
-        self.dir_list.insert('end', i)
+    '''Get full path on target directory and show list images in this directory'''
+    ext = ('.jpg', '.jpeg', '.gif', '.png')
+    if not path:
+      path = self.init_path.show()
+    if path:
+      self.path = path
+    else:
+      return
+    file_len = 0
+    self.files = [name for name in sorted(os.listdir(self.path))
+            if not os.path.isdir(os.path.join(self.path, name))
+            if name.endswith(ext)]
+    self.dir_list.delete(0, 'end')
+    for i in self.files:
+      self.dir_list.insert('end', i)
 
   def parse(self, args):
+    '''Parse arguments, getted from main cycle. Doubled analog from main cycle'''
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--path", required=False)
     parser.add_argument("-t", "--thresh", required=False, type=int)
@@ -37,6 +41,7 @@ class GUI:
     return arguments
 
   def setParam(self):
+    '''Initial set inside variables, getted from main cycle, changes values in GUI window'''
     if self.args.path:
       self.initialdir = self.args.path
       self.init_path.options['initialdir'] = self.initialdir
@@ -64,17 +69,19 @@ class GUI:
       self.mat_c.config(text = 'Your matrix in a JSON formatted file. Experimental option.\nOpened file: %s' % self.json)
 
   def click(self, event):
+    '''Show preview image in selected directory. This function is not required, only for convenience sake'''
     x = y = 1
     size = 300, 300
-    self.img.delete('1.0', 'end')
+    self.preview.delete('1.0', 'end')
     i = self.dir_list.nearest(event.y)
     im = Image.open(file = os.path.join(self.path, self.files[i]))
     im.thumbnail(size, Image.ANTIALIAS)
     imag = ImageTk.PhotoImage(im)
-    self.img.image_create(1.0 ,image = imag)
-    self.img.image = imag
+    self.preview.image_create(1.0 ,image = imag)
+    self.preview.image = imag
 
   def dab_f(self):
+    '''Processing "Threshold" checkbutton event'''
     i = self.dab_v.get()
     if i == True:
       self.dab_s.config(state = 'normal')
@@ -82,6 +89,7 @@ class GUI:
       self.dab_s.config(state = 'disabled')
 
   def emp_f(self):
+    '''Processing "EMPTY" checkbutton event'''
     i = self.emp_v.get()
     if i == True:
       self.emp_s.config(state = 'normal')
@@ -89,6 +97,7 @@ class GUI:
       self.emp_s.config(state = 'disabled')
 
   def mat_f(self):
+    '''Processing "Matrix" checkbutton event'''
     i = self.mat_v.get()
     if i == False:
       self.mat_c.deselect()
@@ -103,6 +112,7 @@ class GUI:
         self.mat_c.config(text = 'Your matrix in a JSON formatted file. Experimental option.\n')
 
   def run(self):
+    '''Getting all parameters, check flag for main cycle'''
     if self.path:
       self.args.path = self.path
     else:
@@ -130,22 +140,25 @@ class GUI:
     else:
       self.args.matrix = None
     self.flag = True
-    time.sleep(3)
     self.runBut.config(text = "Cancel", command = self.yesCancel)
 
   def yesCancel(self):
+    '''Check flag for cancelling calculates'''
     self.cancel = True
 
   def notCancel(self):
+    '''Out after calculates, print result log'''
     self.runBut.config( text="Run test", command=self.run)
     with open(os.path.join(self.path, "result", "log.txt")) as log:
-      self.img.delete(1.0, 'end')
+      self.preview.delete(1.0, 'end')
       i = log.readline()
       while i:
-        self.img.insert('end', i)
+        self.preview.insert('end', i)
         i = log.readline()
 
   def main(self):
+    '''Prepare main GUI window
+    Variables name structure: xxx_y, xxx - first chars from parameter (DAB, EMPTY, silent, analyze, matrix), y: "v" -- BooleanVar, "s" -- scale, "c" -- checkbutton'''
     self.root = Tkinter.Tk()
     self.root.minsize("800", "600")
     optframe = Tkinter.Frame(self.root)
@@ -155,12 +168,12 @@ class GUI:
     imgframe = Tkinter.Frame(self.root)
     imgframe.pack()
 
-    self.img = Tkinter.Text(imgframe)
+    self.preview = Tkinter.Text(imgframe)
     scroll0=Tkinter.Scrollbar(imgframe, borderwidth = 1, width = 8, bg = "grey")
-    scroll0['command']=self.img.yview
-    self.img['yscrollcommand']=scroll0.set
+    scroll0['command']=self.preview.yview
+    self.preview['yscrollcommand']=scroll0.set
     scroll0.pack(side='right', fill ="y")
-    self.img.pack()
+    self.preview.pack()
     Tkinter.Button(fileframe, text="Select source directory", command = self.getPath).pack(side = 'top')
     self.init_path = tkFileDialog.Directory(fileframe, initialdir = self.initialdir, mustexist = True, title = 'Select source directory')
 
@@ -175,6 +188,7 @@ class GUI:
     scroll1.pack(side='right', fill ="y")
     self.dir_list.pack(side='bottom', fill='x')
     self.dir_list.bind('<Button-1>', self.click)
+
 
     self.dab_v = Tkinter.BooleanVar()
     self.dab_c = Tkinter.Checkbutton(optframe, indicatoron = 1, variable = self.dab_v, onvalue = True, offvalue = False, text = "Global threshold for DAB-positive area, from 0 to 100. Optimal values are usually located from 35 to 55.\n Default 40", command = self.dab_f)
@@ -213,10 +227,13 @@ class GUI:
     Tkinter.Frame(optframe, height = 2, width = 800, bd = 3, relief = 'solid').pack(fill='x')
 
   def loop(self):
+    '''Substitution mainloop()'''
     self.root.update()
     self.root.update_idletasks()
+    sleep(0.2)
 
   def __init__(self, args):
+    '''Initialization inside variables, call prepares'''
     self.initialdir = '/home'
     self.path = self.json = ''
     self.flag = self.cancel = False

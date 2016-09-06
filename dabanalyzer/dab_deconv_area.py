@@ -390,14 +390,12 @@ def main():
           p1 = Process(target = run, args = (gui.args,))
           p1.start()
           while p1.is_alive():
-            time.sleep(0.1)
             if gui.cancel:
               p1.terminate()
             gui.loop()
           gui.notCancel()
           gui.flag = gui.cancel = False
         else:
-          time.sleep(0.1)
           try:
             gui.loop()
           except: #TclError:
