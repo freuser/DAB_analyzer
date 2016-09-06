@@ -26,10 +26,7 @@ def parse_arguments():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-g", "--gui", required=False, help="Start GUI", action = "store_true")
-    args = parser.parse_known_args()
-    if args[0].gui == True:
-      return args
-    parser.add_argument("-p", "--path", required=True, help="Path to the directory or file")
+    parser.add_argument("-p", "--path", required=False, help="Path to the directory or file")
     parser.add_argument("-t", "--thresh", required=False, default=40,
                         type=int, help="Global threshold for DAB-positive area,"
                                        "from 0 to 100.Optimal values are usually"
@@ -50,6 +47,8 @@ def parse_arguments():
                                                                 action="store_true")
     parser.add_argument("-m", "--matrix", required=False, help="Your matrix in a JSON formatted file")
     arguments = parser.parse_args()
+    if arguments.gui is False and arguments.path is None:
+      parser.error("At least one of -p/--path and -g/--gui required")
     return arguments
 
 
@@ -382,9 +381,9 @@ def plot_group(data_frame, path_output):
 
 def main():
     args = parse_arguments()
-    if args[0].gui == True:
+    if args.gui == True:
       from .dab_gui import GUI
-      gui = GUI(args[1])
+      gui = GUI(args)
       while True:
         if gui.flag:
           p1 = Process(target = run, args = (gui.args,))

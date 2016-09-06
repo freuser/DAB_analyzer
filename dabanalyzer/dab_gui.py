@@ -3,7 +3,6 @@ import Tkinter
 import tkFileDialog
 import os
 from time import sleep
-import argparse
 
 import Image, ImageTk
 #from PIL import Image, ImageTk
@@ -13,11 +12,14 @@ class GUI:
 
   def getPath(self, path = None):
     '''Get full path on target directory and show list images in this directory'''
+    if self.flag:
+      return
     ext = ('.jpg', '.jpeg', '.gif', '.png')
     if not path:
       path = self.init_path.show()
     if path:
       self.path = path
+      self.butDir.config( text = "Opened:\n%s" %path)
     else:
       return
     file_len = 0
@@ -28,30 +30,17 @@ class GUI:
     for i in self.files:
       self.dir_list.insert('end', i)
 
-  def parse(self, args):
-    '''Parse arguments, getted from main cycle. Doubled analog from main cycle'''
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-p", "--path", required=False)
-    parser.add_argument("-t", "--thresh", required=False, type=int)
-    parser.add_argument("-e", "--empty", required=False, type=int)
-    parser.add_argument("-s", "--silent", required=False, action="store_true")
-    parser.add_argument("-a", "--analyze", required=False, action="store_true")
-    parser.add_argument("-m", "--matrix", required=False)
-    arguments = parser.parse_args(args)
-    return arguments
-
   def setParam(self):
-    '''Initial set inside variables, getted from main cycle, changes values in GUI window'''
+    '''Initial set inside variables, getted from main cycle; changed values in GUI window'''
     if self.args.path:
-      self.initialdir = self.args.path
-      self.init_path.options['initialdir'] = self.initialdir
-      self.init_json.options['initialdir'] = self.initialdir
-    if self.args.thresh:
+      self.init_path.options['initialdir'] = self.args.path
+      self.init_json.options['initialdir'] = self.args.path
+    if self.args.thresh != 40:
       self.dab_s.config(state = 'normal')
       self.dab_s.set(self.args.thresh)
       self.dab_v.set(True)
       self.dab_c.select()
-    if self.args.empty:
+    if self.args.empty != 101:
       self.emp_s.config(state = 'normal')
       self.emp_s.set(self.args.empty)
       self.emp_v.set(True)
@@ -69,7 +58,7 @@ class GUI:
       self.mat_c.config(text = 'Your matrix in a JSON formatted file. Experimental option.\nOpened file: %s' % self.json)
 
   def click(self, event):
-    '''Show preview image in selected directory. This function is not required, only for convenience sake'''
+    '''Show preview image in selected directory. This function is not required, only for convenience' sake'''
     x = y = 1
     size = 300, 300
     self.preview.delete('1.0', 'end')
@@ -112,7 +101,7 @@ class GUI:
         self.mat_c.config(text = 'Your matrix in a JSON formatted file. Experimental option.\n')
 
   def run(self):
-    '''Getting all parameters, check flag for main cycle'''
+    '''Getting all parameters, check flag for main cycle, freeze all controls'''
     if self.path:
       self.args.path = self.path
     else:
@@ -141,13 +130,19 @@ class GUI:
       self.args.matrix = None
     self.flag = True
     self.runBut.config(text = "Cancel", command = self.yesCancel)
+    for i in [self.dab_c, self.dab_s, self.emp_c, self.emp_s, self.ana_c, self.sil_c, self.mat_c]:
+      i.config(state = 'disabled')
 
   def yesCancel(self):
     '''Check flag for cancelling calculates'''
     self.cancel = True
 
   def notCancel(self):
-    '''Out after calculates, print result log'''
+    '''Out after calculates, unfreeze controls, print result log'''
+    for i in [self.dab_c, self.emp_c, self.ana_c, self.sil_c, self.mat_c]:
+      i.config(state = 'normal')
+    self.emp_f()
+    self.dab_f()
     self.runBut.config( text="Run test", command=self.run)
     with open(os.path.join(self.path, "result", "log.txt")) as log:
       self.preview.delete(1.0, 'end')
@@ -157,8 +152,10 @@ class GUI:
         i = log.readline()
 
   def main(self):
-    '''Prepare main GUI window
-    Variables name structure: xxx_y, xxx - first chars from parameter (DAB, EMPTY, silent, analyze, matrix), y: "v" -- BooleanVar, "s" -- scale, "c" -- checkbutton'''
+    '''Prepare main GUI window.
+    Variables name structure: xxx_y:
+    xxx - first chars from parameter (DAB, EMPTY, silent, analyze, matrix),
+    y: "v" -- BooleanVar, "s" -- scale, "c" -- checkbutton'''
     self.root = Tkinter.Tk()
     self.root.minsize("800", "600")
     optframe = Tkinter.Frame(self.root)
@@ -168,18 +165,19 @@ class GUI:
     imgframe = Tkinter.Frame(self.root)
     imgframe.pack()
 
-    self.preview = Tkinter.Text(imgframe)
+    self.runBut = Tkinter.Button(imgframe, text="Run test", command=self.run)
+    self.runBut.pack(anchor = 'n')
+    Tkinter.Frame(imgframe, height=2, bd=1, relief='sunken').pack(side = 'top', fill='x')
+
+    self.preview = Tkinter.Text(imgframe, height=22, width = 65)
     scroll0=Tkinter.Scrollbar(imgframe, borderwidth = 1, width = 8, bg = "grey")
     scroll0['command']=self.preview.yview
     self.preview['yscrollcommand']=scroll0.set
     scroll0.pack(side='right', fill ="y")
     self.preview.pack()
-    Tkinter.Button(fileframe, text="Select source directory", command = self.getPath).pack(side = 'top')
-    self.init_path = tkFileDialog.Directory(fileframe, initialdir = self.initialdir, mustexist = True, title = 'Select source directory')
-
-    self.runBut = Tkinter.Button(imgframe, text="Run test", command=self.run)
-    self.runBut.pack(anchor = 'n')
-    Tkinter.Frame(imgframe, height=2, bd=1, relief='sunken').pack(side = 'top', fill='x')
+    self.butDir = Tkinter.Button(fileframe, text = 'Select source directory', command = self.getPath)
+    self.butDir.pack(side = 'top')
+    self.init_path = tkFileDialog.Directory(fileframe, initialdir = None, mustexist = True, title = 'Select source directory')
 
     self.dir_list = Tkinter.Listbox(fileframe, height=20, width = 65)
     scroll1=Tkinter.Scrollbar(fileframe, borderwidth = 1, width = 8, bg = "grey")
@@ -188,7 +186,6 @@ class GUI:
     scroll1.pack(side='right', fill ="y")
     self.dir_list.pack(side='bottom', fill='x')
     self.dir_list.bind('<Button-1>', self.click)
-
 
     self.dab_v = Tkinter.BooleanVar()
     self.dab_c = Tkinter.Checkbutton(optframe, indicatoron = 1, variable = self.dab_v, onvalue = True, offvalue = False, text = "Global threshold for DAB-positive area, from 0 to 100. Optimal values are usually located from 35 to 55.\n Default 40", command = self.dab_f)
@@ -223,25 +220,25 @@ class GUI:
     self.mat_c.pack(anchor = 'w')
 
     myfiletypes = [('JSON files', '.json'), ('All files', '*')]
-    self.init_json = tkFileDialog.Open(optframe, initialdir = self.initialdir, title = 'Select matrix file', filetypes = myfiletypes, defaultextension = '.json')
+    self.init_json = tkFileDialog.Open(optframe, initialdir = None, title = 'Select matrix file', filetypes = myfiletypes, defaultextension = '.json')
     Tkinter.Frame(optframe, height = 2, width = 800, bd = 3, relief = 'solid').pack(fill='x')
 
   def loop(self):
-    '''Substitution mainloop()'''
+    '''Substitution `root.mainloop()`'''
     self.root.update()
     self.root.update_idletasks()
     sleep(0.2)
 
   def __init__(self, args):
     '''Initialization inside variables, call prepares'''
-    self.initialdir = '/home'
     self.path = self.json = ''
     self.flag = self.cancel = False
     self.main()
     if args:
-      self.args = self.parse(args)
+      self.args = args
       self.setParam()
-    self.getPath(self.initialdir)
+    if self.args.path:
+      self.getPath(self.args.path)
 
 if __name__ == '__main__':
   main()
