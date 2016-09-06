@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
-import Tkinter
+import sys
+if sys.version_info.major == 3:
+  import tkinter as tk
+else:
+  import Tkinter as tk
 import tkFileDialog
 import os
 from time import sleep
@@ -156,72 +160,72 @@ class GUI:
     Variables name structure: xxx_y:
     xxx - first chars from parameter (DAB, EMPTY, silent, analyze, matrix),
     y: "v" -- BooleanVar, "s" -- scale, "c" -- checkbutton'''
-    self.root = Tkinter.Tk()
+    self.root = tk.Tk()
     self.root.minsize("800", "600")
-    optframe = Tkinter.Frame(self.root)
+    optframe = tk.Frame(self.root)
     optframe.pack(side = 'top')
-    fileframe = Tkinter.Frame(self.root)
+    fileframe = tk.Frame(self.root)
     fileframe.pack(side = 'left')
-    imgframe = Tkinter.Frame(self.root)
+    imgframe = tk.Frame(self.root)
     imgframe.pack()
 
-    self.runBut = Tkinter.Button(imgframe, text="Run test", command=self.run)
+    self.runBut = tk.Button(imgframe, text="Run test", command=self.run)
     self.runBut.pack(anchor = 'n')
-    Tkinter.Frame(imgframe, height=2, bd=1, relief='sunken').pack(side = 'top', fill='x')
+    tk.Frame(imgframe, height=2, bd=1, relief='sunken').pack(side = 'top', fill='x')
 
-    self.preview = Tkinter.Text(imgframe, height=22, width = 65)
-    scroll0=Tkinter.Scrollbar(imgframe, borderwidth = 1, width = 8, bg = "grey")
+    self.preview = tk.Text(imgframe, height=22, width = 65)
+    scroll0=tk.Scrollbar(imgframe, borderwidth = 1, width = 8, bg = "grey")
     scroll0['command']=self.preview.yview
     self.preview['yscrollcommand']=scroll0.set
     scroll0.pack(side='right', fill ="y")
     self.preview.pack()
-    self.butDir = Tkinter.Button(fileframe, text = 'Select source directory', command = self.getPath)
+    self.butDir = tk.Button(fileframe, text = 'Select source directory', command = self.getPath)
     self.butDir.pack(side = 'top')
     self.init_path = tkFileDialog.Directory(fileframe, initialdir = None, mustexist = True, title = 'Select source directory')
 
-    self.dir_list = Tkinter.Listbox(fileframe, height=20, width = 65)
-    scroll1=Tkinter.Scrollbar(fileframe, borderwidth = 1, width = 8, bg = "grey")
+    self.dir_list = tk.Listbox(fileframe, height=20, width = 65)
+    scroll1=tk.Scrollbar(fileframe, borderwidth = 1, width = 8, bg = "grey")
     scroll1['command']=self.dir_list.yview
     self.dir_list['yscrollcommand']=scroll1.set
     scroll1.pack(side='right', fill ="y")
     self.dir_list.pack(side='bottom', fill='x')
     self.dir_list.bind('<Button-1>', self.click)
 
-    self.dab_v = Tkinter.BooleanVar()
-    self.dab_c = Tkinter.Checkbutton(optframe, indicatoron = 1, variable = self.dab_v, onvalue = True, offvalue = False, text = "Global threshold for DAB-positive area, from 0 to 100. Optimal values are usually located from 35 to 55.\n Default 40", command = self.dab_f)
+    self.dab_v = tk.BooleanVar()
+    self.dab_c = tk.Checkbutton(optframe, indicatoron = 1, variable = self.dab_v, onvalue = True, offvalue = False, text = "Global threshold for DAB-positive area, from 0 to 100. Optimal values are usually located from 35 to 55.\n Default 40", command = self.dab_f)
     self.dab_c.pack(anchor = 'w')
-    self.dab_s = Tkinter.Scale(optframe, to = 100, length = 700,  orient = 'horizontal')
+    self.dab_s = tk.Scale(optframe, to = 100, length = 700,  orient = 'horizontal')
     self.dab_s['from'] = 1
     self.dab_s.set(40)
     self.dab_s.pack(anchor = 'e')
     self.dab_s['state'] = 'disabled'
-    Tkinter.Frame(optframe, height=2, bd=1, relief='sunken').pack(fill='x')
+    tk.Frame(optframe, height=2, bd=1, relief='sunken').pack(fill='x')
 
-    self.emp_v = Tkinter.BooleanVar()
-    self.emp_c = Tkinter.Checkbutton(optframe, indicatoron = 2, variable = self.emp_v, onvalue = True, offvalue = False, text = "Global threshold for EMPTY area, from 0 to 100.\n Default disabled", command = self.emp_f)
+    self.emp_v = tk.BooleanVar()
+    self.emp_c = tk.Checkbutton(optframe, indicatoron = 2, variable = self.emp_v, onvalue = True, offvalue = False, text = "Global threshold for EMPTY area, from 0 to 100.\n Default disabled", command = self.emp_f)
     self.emp_c.pack(anchor = 'w')
-    self.emp_s = Tkinter.Scale(optframe, to = 100, length = 700,  orient = 'horizontal', state = 'disabled')
+    self.emp_s = tk.Scale(optframe, to = 100, length = 700,  orient = 'horizontal', state = 'disabled')
     self.emp_s['from'] = 1
     self.emp_s.pack(anchor = 'e')
-    Tkinter.Frame(optframe, height=2, bd=1, relief='sunken').pack(fill='x')
+    tk.Frame(optframe, height=2, bd=1, relief='sunken').pack(fill='x')
 
-    self.sil_v = Tkinter.BooleanVar()
-    self.sil_c = Tkinter.Checkbutton(optframe, indicatoron = 1, variable = self.sil_v, onvalue = True, offvalue = False, text = "Supress figure rendering during the analysis, only final results will be saved")
+    self.sil_v = tk.BooleanVar()
+    self.sil_c = tk.Checkbutton(optframe, indicatoron = 1, variable = self.sil_v, onvalue = True, offvalue = False, text = "Supress figure rendering during the analysis, only final results will be saved")
     self.sil_c.pack(anchor = 'w')
-    Tkinter.Frame(optframe, height=2, bd=1, relief='sunken').pack(fill='x')
+    tk.Frame(optframe, height=2, bd=1, relief='sunken').pack(fill='x')
 
-    self.ana_v = Tkinter.BooleanVar()
-    self.ana_c = Tkinter.Checkbutton(optframe, indicatoron = 1, variable = self.ana_v, onvalue = True, offvalue = False, text = "Add group analysis after the indvidual image processing.\nThe groups are created using the filename.\nEverything before '_' symbol will be recognized as a group name.\nExample: sample01_10.jpg, sample01_11.jpg will be counted as a single group 'sample01'")
+    self.ana_v = tk.BooleanVar()
+    self.ana_c = tk.Checkbutton(optframe, indicatoron = 1, variable = self.ana_v, onvalue = True, offvalue = False, text = "Add group analysis after the indvidual image processing.\nThe groups are created using the filename.\nEverything before '_' symbol will be recognized as a group name.\nExample: sample01_10.jpg, sample01_11.jpg will be counted as a single group 'sample01'")
     self.ana_c.pack(anchor = 'w')
-    Tkinter.Frame(optframe, height=2, bd=1, relief='sunken').pack(fill='x')
+    tk.Frame(optframe, height=2, bd=1, relief='sunken').pack(fill='x')
 
-    self.mat_v = Tkinter.BooleanVar()
-    self.mat_c = Tkinter.Checkbutton(optframe, indicatoron = 1, variable = self.mat_v, onvalue = True, offvalue = False, text = "Your matrix in a JSON formatted file. Experimental option\n", command = self.mat_f)
+    self.mat_v = tk.BooleanVar()
+    self.mat_c = tk.Checkbutton(optframe, indicatoron = 1, variable = self.mat_v, onvalue = True, offvalue = False, text = "Your matrix in a JSON formatted file. Experimental option\n", command = self.mat_f)
     self.mat_c.pack(anchor = 'w')
 
     myfiletypes = [('JSON files', '.json'), ('All files', '*')]
     self.init_json = tkFileDialog.Open(optframe, initialdir = None, title = 'Select matrix file', filetypes = myfiletypes, defaultextension = '.json')
-    Tkinter.Frame(optframe, height = 2, width = 800, bd = 3, relief = 'solid').pack(fill='x')
+    tk.Frame(optframe, height = 2, width = 800, bd = 3, relief = 'solid').pack(fill='x')
 
   def loop(self):
     '''Substitution `root.mainloop()`'''
