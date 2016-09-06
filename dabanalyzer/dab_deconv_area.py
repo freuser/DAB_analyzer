@@ -386,12 +386,13 @@ def main():
       gui = GUI(args)
       while True:
         if gui.flag:
-          p1 = Process(target = run, args = (gui.args,))
-          p1.start()
-          while p1.is_alive():
-            if gui.cancel:
-              p1.terminate()
-            gui.loop()
+          run(gui.args)
+          #p1 = Process(target = run, args = (gui.args,))
+          #p1.start()
+          #while p1.is_alive():
+            #if gui.cancel:
+              #p1.terminate()
+            #gui.loop()
           gui.notCancel()
           gui.flag = gui.cancel = False
         else:

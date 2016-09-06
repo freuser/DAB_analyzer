@@ -2,13 +2,14 @@
 import sys
 if sys.version_info.major == 3:
   import tkinter as tk
+  import tkinter.filedialog as dialog
 else:
+  import tkFileDialog as dialog
   import Tkinter as tk
-import tkFileDialog
 import os
 from time import sleep
 
-import Image, ImageTk
+#import Image, ImageTk
 #from PIL import Image, ImageTk
 
 class GUI:
@@ -132,10 +133,10 @@ class GUI:
       self.args.matrix = self.json
     else:
       self.args.matrix = None
-    self.flag = True
-    self.runBut.config(text = "Cancel", command = self.yesCancel)
+    #self.runBut.config(text = "Cancel", command = self.yesCancel)
     for i in [self.dab_c, self.dab_s, self.emp_c, self.emp_s, self.ana_c, self.sil_c, self.mat_c]:
       i.config(state = 'disabled')
+    self.flag = True
 
   def yesCancel(self):
     '''Check flag for cancelling calculates'''
@@ -147,7 +148,7 @@ class GUI:
       i.config(state = 'normal')
     self.emp_f()
     self.dab_f()
-    self.runBut.config( text="Run test", command=self.run)
+    #self.runBut.config( text="Run test", command=self.run)
     with open(os.path.join(self.path, "result", "log.txt")) as log:
       self.preview.delete(1.0, 'end')
       i = log.readline()
@@ -181,7 +182,7 @@ class GUI:
     self.preview.pack()
     self.butDir = tk.Button(fileframe, text = 'Select source directory', command = self.getPath)
     self.butDir.pack(side = 'top')
-    self.init_path = tkFileDialog.Directory(fileframe, initialdir = None, mustexist = True, title = 'Select source directory')
+    self.init_path = dialog.Directory(fileframe, initialdir = None, mustexist = True, title = 'Select source directory')
 
     self.dir_list = tk.Listbox(fileframe, height=20, width = 65)
     scroll1=tk.Scrollbar(fileframe, borderwidth = 1, width = 8, bg = "grey")
@@ -224,7 +225,7 @@ class GUI:
     self.mat_c.pack(anchor = 'w')
 
     myfiletypes = [('JSON files', '.json'), ('All files', '*')]
-    self.init_json = tkFileDialog.Open(optframe, initialdir = None, title = 'Select matrix file', filetypes = myfiletypes, defaultextension = '.json')
+    self.init_json = dialog.Open(optframe, initialdir = None, title = 'Select matrix file', filetypes = myfiletypes, defaultextension = '.json')
     tk.Frame(optframe, height = 2, width = 800, bd = 3, relief = 'solid').pack(fill='x')
 
   def loop(self):
