@@ -6,14 +6,22 @@ import json
 from multiprocessing import Pool, cpu_count, Process
 from functools import partial
 
+import imghdr
+import threading as th
+from time import sleep as sleep
+import sys
+import pickle
+
 import numpy as np
 from scipy import linalg, misc
 from skimage import color
 import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 
-
-from . import hasel
+try:
+    from . import hasel
+except (SystemError, ValueError):
+    import hasel
 
 # Optional imports of pandas and seaborn are located in functions
 # group_analyze() and plot_group().
@@ -46,20 +54,23 @@ def parse_arguments():
                                                                 " counted as a single group 'sample01'",
                                                                 action="store_true")
     parser.add_argument("-m", "--matrix", required=False, help="Your matrix in a JSON formatted file")
+    parser.add_argument("-z", required=False, default=0,
+                        type=int, help="Parameter only for tests with GUI, maybe between 0 to 5. Switched productivity, default turn GUI into a zombie and normal productivity.")
     arguments = parser.parse_args()
     if arguments.gui is False and arguments.path is None:
-      parser.error("At least one of -p/--path and -g/--gui required")
+        parser.error("At least one of -p/--path and -g/--gui required")
     return arguments
 
 
 def get_image_filenames(path):
     """
-    Returns only the filenames in the path. Directories, subdirectories and files below the first level
+    Returns only the filenames of images in the path. Directories, subdirectories and files below the first level
     are excluded
     """
 
     return [name for name in sorted(os.listdir(path))
-            if not os.path.isdir(os.path.join(path, name))]
+            if not os.path.isdir(os.path.join(path, name))
+            if imghdr.what(os.path.join(path, name))]
 
 
 def calc_deconv_matrix(matrix_vector_dab_he):
@@ -202,7 +213,7 @@ def plot_figure(image_original, stain_dab, stain_dab_1d, channel_lightness, thre
     plt.title('DAB positive area')
     plt.imshow(thresh_dab, cmap=plt.cm.gray)
 
-    if not tresh_empty_default>100:
+    if not tresh_empty_default > 100:
         plt.subplot(236)
         plt.title('Empty area')
         plt.imshow(thresh_empty, cmap=plt.cm.gray)
@@ -379,29 +390,79 @@ def plot_group(data_frame, path_output):
     plt.tight_layout()
     plt.savefig(path_output_image, dpi=300)
 
+
 def main():
     args = parse_arguments()
-    if args.gui == True:
-      from .dab_gui import GUI
-      gui = GUI(args)
-      while True:
-        if gui.flag:
-          run(gui.args)
-          #p1 = Process(target = run, args = (gui.args,))
-          #p1.start()
-          #while p1.is_alive():
-            #if gui.cancel:
-              #p1.terminate()
-            #gui.loop()
-          gui.notCancel()
-          gui.flag = gui.cancel = False
+    if args.gui:
+        if args.z == 5:  # one time run and exit after calculate
+          if sys.version_info.major == 3:
+            arg = str(pickle.dumps(args, 0), 'ascii')
+            comm = "python3 " + os.path.abspath(os.path.dirname(__file__)) + "/dab_gui.py " + "'%s'" %arg
+            out = os.popen(comm, 'r').read()
+            arg = pickle.loads(bytes(out, 'ascii'))
+          else:
+            arg = pickle.dumps(args)
+            comm = "python " + os.path.abspath(os.path.dirname(__file__)) + "/dab_gui.py " + '"%s"' % arg
+            out = os.popen(comm, 'r').read()
+            arg = pickle.loads(out)
+          run(arg)
+          #gui = GUI(arg)
         else:
-          try:
-            gui.loop()
-          except: #TclError:
-            break
+            try:
+                from .dab_gui import GUI
+            except (SystemError, ValueError):
+                from dab_gui import GUI
+            gui = GUI(args)
+            while True:
+                if gui.flag:
+                    if args.z == 1:  # runned calculate in main mode, GUI in background mode
+                        p = Process(target=gui.loop, args=(True,))
+                        p.start()
+                        try:
+                          run(gui.args)
+                        except:
+                          p.terminate()
+                          log_and_console(os.path.join(gui.args.path, "result/", "error.txt"), 'Exception in mode z1: '+str(sys.exc_info()[:2]))
+                        p.terminate()
+                    elif args.z == 2:  # runned calculate in background mode, cancelling enabled, GUI in main mode
+                        p = Process(target=run, args=(gui.args,))
+                        p.start()
+                        while p.is_alive():
+                            gui.loop(False)
+                            if gui.cancel:
+                                p.terminate()
+                    elif args.z == 3:  # runned both in its threads
+                        p0 = th.Thread(target = gui.loop, args = (True,))
+                        p1 = th.Thread(target = run, args = (gui.args,))
+                        try:
+                            p0.start()
+                            p1.start()
+                            while p1.is_alive() and not gui.cancel:
+                                sleep(0.5)
+                            p1._Thread_stop()
+                            p0._Thread_stop()
+                        except:
+                            log_and_console(os.path.join(gui.args.path, "result/", "error.txt"), 'Exception in mode z1: '+str(sys.exc_info()[:2]))
+                    elif args.z == 4:  # runned calculate in separate thread, GUI in main
+                        p0 = th.Thread(target = run, args = (gui.args,))
+                        try:
+                            p0.start()
+                            while p0.is_alive() and not gui.cancel:
+                                gui.loop(False)
+                            p0._Thread_stop()
+                        except:
+                            log_and_console(os.path.join(gui.args.path, "result/", "error.txt"), 'Exception in mode z1: '+str(sys.exc_info()[:2]))
+                    else:  # one-thread mode, runned calculate, GUI is zombie
+                        run(gui.args)
+                    gui.final()
+                else:
+                    try:
+                        gui.loop(False)
+                    except:  #TclError:
+                        break
     else:
-      run(args)
+        run(args)
+
 
 def run(args):
     """
@@ -431,10 +492,9 @@ def run(args):
     log_and_console(pathOutputLog, "Images for analysis: " + str(len(filenames)), True)
     log_and_console(pathOutputLog, "DAB threshold = " + str(args.thresh) +
                     ", Empty threshold = " + str(args.empty))
-    if args.empty>100:
+    if args.empty > 100:
         log_and_console(pathOutputLog, "Empty area filtering is disabled.")
         log_and_console(pathOutputLog, "It should be adjusted in a case of hollow organ or unavoidable edge defects")
-
 
     # Calculate the DAB and HE deconvolution matrix
     matrixDH = calc_deconv_matrix(matrixVectorDabHE)
@@ -461,10 +521,10 @@ def run(args):
 
     # Optional statistical group analysis.
     if args.analyze:
-        log_and_console(pathOutputLog,"Group analysis is active")
+        log_and_console(pathOutputLog, "Group analysis is active")
         group_analyze(filenames, arrayData, pathOutput)
-        log_and_console(pathOutputLog,"Statistical data for each group was saved as stats.csv")
-        log_and_console(pathOutputLog,"Boxplot with statistics was saved as summary_statistics.png")
+        log_and_console(pathOutputLog, "Statistical data for each group was saved as stats.csv")
+        log_and_console(pathOutputLog, "Boxplot with statistics was saved as summary_statistics.png")
 
     # End of the global timer
     elapsedGlobal = timeit.default_timer() - startTimeGlobal
@@ -474,3 +534,6 @@ def run(args):
         averageImageTime = elapsedGlobal/len(filenames)
     log_and_console(pathOutputLog, "Analysis time: {:.1f} seconds".format(elapsedGlobal))
     log_and_console(pathOutputLog, "Average time per image: {:.1f} seconds".format(averageImageTime))
+
+if __name__ == '__main__':
+    main()

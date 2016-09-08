@@ -1,16 +1,32 @@
 # -*- coding: utf-8 -*-
-import sys
+import os, sys
 if sys.version_info.major == 3:
   import tkinter as tk
   import tkinter.filedialog as dialog
+  from PIL import Image, ImageTk
 else:
+  import Image, ImageTk
   import tkFileDialog as dialog
   import Tkinter as tk
-import os
 from time import sleep
+import imghdr
+import pickle
 
-#import Image, ImageTk
-#from PIL import Image, ImageTk
+class got:
+  '''Prepare values for work in independent mode'''
+  __module__ = os.path.splitext(os.path.basename(__file__))[0]
+  '''This string for right work of pickle'''
+
+  def __init__(self):
+    self.path = None
+    self.thresh = 40
+    self.matrix = None
+    self.empty = 101
+    self.silent = False
+    self.analyze = False
+
+  def __repr__(self):
+    return ' '.join("%s=%s" %(a, b) for a, b in self.__dict__.items())
 
 class GUI:
   '''This class draw GUI window and set variables for manage calculates'''
@@ -19,7 +35,6 @@ class GUI:
     '''Get full path on target directory and show list images in this directory'''
     if self.flag:
       return
-    ext = ('.jpg', '.jpeg', '.gif', '.png')
     if not path:
       path = self.init_path.show()
     if path:
@@ -30,8 +45,12 @@ class GUI:
     file_len = 0
     self.files = [name for name in sorted(os.listdir(self.path))
             if not os.path.isdir(os.path.join(self.path, name))
-            if name.endswith(ext)]
+            if imghdr.what(os.path.join(self.path, name))]
     self.dir_list.delete(0, 'end')
+    if not self.files:
+      self.dir_list.insert('end', "This directory not  have an images. Try select other.")
+      self.path = None
+      return
     for i in self.files:
       self.dir_list.insert('end', i)
 
@@ -65,10 +84,10 @@ class GUI:
   def click(self, event):
     '''Show preview image in selected directory. This function is not required, only for convenience' sake'''
     x = y = 1
-    size = 300, 300
+    size = 400, 300
     self.preview.delete('1.0', 'end')
     i = self.dir_list.nearest(event.y)
-    im = Image.open(file = os.path.join(self.path, self.files[i]))
+    im = Image.open(os.path.join(self.path, self.files[i]))
     im.thumbnail(size, Image.ANTIALIAS)
     imag = ImageTk.PhotoImage(im)
     self.preview.image_create(1.0 ,image = imag)
@@ -105,13 +124,13 @@ class GUI:
         self.mat_c.deselect()
         self.mat_c.config(text = 'Your matrix in a JSON formatted file. Experimental option.\n')
 
-  def run(self):
+  def prepare(self):
     '''Getting all parameters, check flag for main cycle, freeze all controls'''
     if self.path:
       self.args.path = self.path
     else:
       self.dir_list.delete(0, 'end')
-      self.dir_list.insert(0, 'You need select directory')
+      self.dir_list.insert(0, 'You need select non-empty directory')
       return
     if self.dab_v.get():
       self.args.thresh = self.dab_s.get()
@@ -133,7 +152,17 @@ class GUI:
       self.args.matrix = self.json
     else:
       self.args.matrix = None
-    #self.runBut.config(text = "Cancel", command = self.yesCancel)
+    if __name__ == '__main__':
+      if sys.version_info.major == 3:
+        print(str(pickle.dumps(self.args, 0), 'ascii'))
+      else:
+        print(pickle.dumps(self.args))
+      self.root.quit()
+    else:
+      self.runBack()
+
+  def runBack(self):
+    self.runBut.config(text = "Cancel", command = self.yesCancel)
     for i in [self.dab_c, self.dab_s, self.emp_c, self.emp_s, self.ana_c, self.sil_c, self.mat_c]:
       i.config(state = 'disabled')
     self.flag = True
@@ -141,14 +170,18 @@ class GUI:
   def yesCancel(self):
     '''Check flag for cancelling calculates'''
     self.cancel = True
+    raise KeyboardInterrupt
+    self.final()
 
-  def notCancel(self):
+  def final(self):
     '''Out after calculates, unfreeze controls, print result log'''
+    self.cancel = False
+    self.flag = False
     for i in [self.dab_c, self.emp_c, self.ana_c, self.sil_c, self.mat_c]:
       i.config(state = 'normal')
     self.emp_f()
     self.dab_f()
-    #self.runBut.config( text="Run test", command=self.run)
+    self.runBut.config( text="Run test", command=self.prepare)
     with open(os.path.join(self.path, "result", "log.txt")) as log:
       self.preview.delete(1.0, 'end')
       i = log.readline()
@@ -170,7 +203,7 @@ class GUI:
     imgframe = tk.Frame(self.root)
     imgframe.pack()
 
-    self.runBut = tk.Button(imgframe, text="Run test", command=self.run)
+    self.runBut = tk.Button(imgframe, text="Run test", command=self.prepare)
     self.runBut.pack(anchor = 'n')
     tk.Frame(imgframe, height=2, bd=1, relief='sunken').pack(side = 'top', fill='x')
 
@@ -228,13 +261,18 @@ class GUI:
     self.init_json = dialog.Open(optframe, initialdir = None, title = 'Select matrix file', filetypes = myfiletypes, defaultextension = '.json')
     tk.Frame(optframe, height = 2, width = 800, bd = 3, relief = 'solid').pack(fill='x')
 
-  def loop(self):
-    '''Substitution `root.mainloop()`'''
-    self.root.update()
-    self.root.update_idletasks()
-    sleep(0.2)
+  def loop(self, cycle):
+    '''Substitution `root.mainloop()` for running as module'''
+    while cycle:
+      self.root.update()
+      self.root.update_idletasks()
+      sleep(0.2)
+    else:
+      self.root.update()
+      self.root.update_idletasks()
+      sleep(0.2)
 
-  def __init__(self, args):
+  def __init__(self, args = None):
     '''Initialization inside variables, call prepares'''
     self.path = self.json = ''
     self.flag = self.cancel = False
@@ -242,8 +280,19 @@ class GUI:
     if args:
       self.args = args
       self.setParam()
-    if self.args.path:
-      self.getPath(self.args.path)
+      if self.args.path:
+        self.getPath(self.args.path)
+    else:
+      self.args = got()
 
 if __name__ == '__main__':
-  main()
+  '''Load parameters from main file across pickled container'''
+  if len(sys.argv) > 1:
+    if sys.version_info.major == 3:
+      args = pickle.loads(sys.argv[1].encode(), encoding = 'bytes')
+    else:
+      args = pickle.loads(sys.argv[1].replace(r'\n', '\n'))
+    gui = GUI(args)
+  else:
+    gui = GUI()
+  gui.root.mainloop()
