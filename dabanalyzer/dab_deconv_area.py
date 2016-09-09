@@ -10,7 +10,6 @@ import imghdr
 import threading as th
 from time import sleep as sleep
 import sys
-import pickle
 
 import numpy as np
 from scipy import linalg, misc
@@ -27,13 +26,13 @@ except (SystemError, ValueError):
 # group_analyze() and plot_group().
 
 
-def parse_arguments():
+def parse_arguments(arg = sys.argv[1:]):
     """
     Parsing arguments
     """
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-g", "--gui", required=False, help="Start GUI", action = "store_true")
+    parser.add_argument("-g", "--gui", required=False, type=int, choices=[1,2,3,4,5,6,7], help="Start GUI. Parameter maybe number between 1 to 7. Switched productivity.")
     parser.add_argument("-p", "--path", required=False, help="Path to the directory or file")
     parser.add_argument("-t", "--thresh", required=False, default=40,
                         type=int, help="Global threshold for DAB-positive area,"
@@ -54,9 +53,7 @@ def parse_arguments():
                                                                 " counted as a single group 'sample01'",
                                                                 action="store_true")
     parser.add_argument("-m", "--matrix", required=False, help="Your matrix in a JSON formatted file")
-    parser.add_argument("-z", required=False, default=0,
-                        type=int, help="Parameter only for tests with GUI, maybe between 0 to 5. Switched productivity, default turn GUI into a zombie and normal productivity.")
-    arguments = parser.parse_args()
+    arguments = parser.parse_args(arg)
     if arguments.gui is False and arguments.path is None:
         parser.error("At least one of -p/--path and -g/--gui required")
     return arguments
@@ -394,19 +391,15 @@ def plot_group(data_frame, path_output):
 def main():
     args = parse_arguments()
     if args.gui:
-        if args.z == 5:  # one time run and exit after calculate
-          if sys.version_info.major == 3:
-            arg = str(pickle.dumps(args, 0), 'ascii')
-            comm = "python3 " + os.path.abspath(os.path.dirname(__file__)) + "/dab_gui.py " + "'%s'" %arg
-            out = os.popen(comm, 'r').read()
-            arg = pickle.loads(bytes(out, 'ascii'))
-          else:
-            arg = pickle.dumps(args)
-            comm = "python " + os.path.abspath(os.path.dirname(__file__)) + "/dab_gui.py " + '"%s"' % arg
-            out = os.popen(comm, 'r').read()
-            arg = pickle.loads(out)
+        if args.gui == 6:  # one time run and exit after calculate
+          comm = sys.executable + " " + os.path.abspath(os.path.dirname(__file__)) + "/dab_gui.py " + "".join(" %s" %a.replace(" ", "\ ") for a in sys.argv[1:])
+          out = os.popen(comm, 'r').read()[1:-1] # deleting first space and last '\n'
+          print('a')
+          arg = parse_arguments(out.split("+"))
           run(arg)
-          #gui = GUI(arg)
+        elif args.gui == 7:  # replace gui and run calculate many times
+          python = sys.executable
+          os.execl(python, python, os.path.abspath(os.path.dirname(__file__))+ "/dab_gui.py", *sys.argv[1:])
         else:
             try:
                 from .dab_gui import GUI
@@ -415,7 +408,7 @@ def main():
             gui = GUI(args)
             while True:
                 if gui.flag:
-                    if args.z == 1:  # runned calculate in main mode, GUI in background mode
+                    if args.gui == 2:  # runned calculate in main mode, GUI in background mode
                         p = Process(target=gui.loop, args=(True,))
                         p.start()
                         try:
@@ -424,14 +417,15 @@ def main():
                           p.terminate()
                           log_and_console(os.path.join(gui.args.path, "result/", "error.txt"), 'Exception in mode z1: '+str(sys.exc_info()[:2]))
                         p.terminate()
-                    elif args.z == 2:  # runned calculate in background mode, cancelling enabled, GUI in main mode
+                    elif args.gui == 3:  # runned calculate in background mode, cancelling enabled, GUI in main mode
                         p = Process(target=run, args=(gui.args,))
                         p.start()
-                        while p.is_alive():
+                        while not gui.cancel: #p.is_alive()
                             gui.loop(False)
                             if gui.cancel:
                                 p.terminate()
-                    elif args.z == 3:  # runned both in its threads
+                                break
+                    elif args.gui == 4:  # runned both in its threads
                         p0 = th.Thread(target = gui.loop, args = (True,))
                         p1 = th.Thread(target = run, args = (gui.args,))
                         try:
@@ -443,7 +437,7 @@ def main():
                             p0._Thread_stop()
                         except:
                             log_and_console(os.path.join(gui.args.path, "result/", "error.txt"), 'Exception in mode z1: '+str(sys.exc_info()[:2]))
-                    elif args.z == 4:  # runned calculate in separate thread, GUI in main
+                    elif args.gui == 5:  # runned calculate in separate thread, GUI in main
                         p0 = th.Thread(target = run, args = (gui.args,))
                         try:
                             p0.start()

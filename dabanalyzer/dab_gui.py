@@ -10,11 +10,12 @@ else:
   import Tkinter as tk
 from time import sleep
 import imghdr
-import pickle
+import argparse
+import subprocess as sp
 
 class got:
   '''Prepare values for work in independent mode'''
-  __module__ = os.path.splitext(os.path.basename(__file__))[0]
+  #__module__ = os.path.splitext(os.path.basename(__file__))[0]
   '''This string for right work of pickle'''
 
   def __init__(self):
@@ -24,12 +25,28 @@ class got:
     self.empty = 101
     self.silent = False
     self.analyze = False
+    self.gui = 0
 
   def __repr__(self):
     return ' '.join("%s=%s" %(a, b) for a, b in self.__dict__.items())
 
 class GUI:
   '''This class draw GUI window and set variables for manage calculates'''
+
+  def parse(self, args):
+    '''Parse arguments, copied from main cycle.'''
+    if type(args) is not list:
+      return args
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-p", "--path", required=False)
+    parser.add_argument("-t", "--thresh", required=False, type=int, default=40)
+    parser.add_argument("-e", "--empty", required=False, type=int, default=101)
+    parser.add_argument("-s", "--silent", required=False, action="store_true")
+    parser.add_argument("-a", "--analyze", required=False, action="store_true")
+    parser.add_argument("-m", "--matrix", required=False)
+    parser.add_argument("-g", "--gui", required=False, type=int, default = 0)
+    arguments = parser.parse_args(args)
+    return arguments
 
   def getPath(self, path = None):
     '''Get full path on target directory and show list images in this directory'''
@@ -60,10 +77,10 @@ class GUI:
       self.init_path.options['initialdir'] = self.args.path
       self.init_json.options['initialdir'] = self.args.path
     if self.args.thresh != 40:
-      self.dab_s.config(state = 'normal')
-      self.dab_s.set(self.args.thresh)
-      self.dab_v.set(True)
-      self.dab_c.select()
+      self.thr_s.config(state = 'normal')
+      self.thr_s.set(self.args.thresh)
+      self.thr_v.set(True)
+      self.thr_c.select()
     if self.args.empty != 101:
       self.emp_s.config(state = 'normal')
       self.emp_s.set(self.args.empty)
@@ -93,13 +110,13 @@ class GUI:
     self.preview.image_create(1.0 ,image = imag)
     self.preview.image = imag
 
-  def dab_f(self):
+  def thr_f(self):
     '''Processing "Threshold" checkbutton event'''
-    i = self.dab_v.get()
+    i = self.thr_v.get()
     if i == True:
-      self.dab_s.config(state = 'normal')
+      self.thr_s.config(state = 'normal')
     else:
-      self.dab_s.config(state = 'disabled')
+      self.thr_s.config(state = 'disabled')
 
   def emp_f(self):
     '''Processing "EMPTY" checkbutton event'''
@@ -126,68 +143,87 @@ class GUI:
 
   def prepare(self):
     '''Getting all parameters, check flag for main cycle, freeze all controls'''
+    ret = ''
     if self.path:
       self.args.path = self.path
+      ret += '+-p+"%s"' %self.path
     else:
       self.dir_list.delete(0, 'end')
       self.dir_list.insert(0, 'You need select non-empty directory')
       return
-    if self.dab_v.get():
-      self.args.thresh = self.dab_s.get()
+    if self.thr_v.get():
+      self.args.thresh = self.thr_s.get()
+      ret += '+-t+'+ str(self.args.thresh)
     else:
       self.args.thresh = 40
     if self.emp_v.get():
       self.args.empty = self.emp_s.get()
+      ret += '+-e+'+ str(self.args.empty)
     else:
       self.args.empty = 101
     if self.sil_v.get():
       self.args.silent = True
+      ret += '+-s'
     else:
       self.args.silent = False
     if self.ana_v.get():
       self.args.analyze = True
+      ret += '+-a'
     else:
       self.args.analyze = False
     if self.mat_v.get():
       self.args.matrix = self.json
+      ret += '+-m+"%s"' %self.json
     else:
       self.args.matrix = None
     if __name__ == '__main__':
-      if sys.version_info.major == 3:
-        print(str(pickle.dumps(self.args, 0), 'ascii'))
+      if self.args.__class__.__name__ is 'got' or self.args.gui == 7:
+        proc = sp.Popen([sys.executable + ' -u ' + os.path.abspath(os.path.dirname(__file__)) + "/dab_deconv_area.py " + ret.replace("+", " ")], shell=True, stdout=sp.PIPE, stderr=sp.STDOUT)
+        self.preview.delete(1.0, 'end')
+        self.runBack()
+        while True:
+          self.loop(False)
+          i = proc.stdout.readline()
+          if not i or proc.poll() is not None:
+            break
+          self.preview.insert('end', i)
+          if self.cancel:
+            proc.terminate()
+        self.final(False)
       else:
-        print(pickle.dumps(self.args))
-      self.root.quit()
+        print(ret.replace('"', ''))
+        self.root.quit()
     else:
       self.runBack()
 
   def runBack(self):
     self.runBut.config(text = "Cancel", command = self.yesCancel)
-    for i in [self.dab_c, self.dab_s, self.emp_c, self.emp_s, self.ana_c, self.sil_c, self.mat_c]:
+    for i in [self.thr_c, self.thr_s, self.emp_c, self.emp_s, self.ana_c, self.sil_c, self.mat_c]:
       i.config(state = 'disabled')
     self.flag = True
 
   def yesCancel(self):
     '''Check flag for cancelling calculates'''
     self.cancel = True
-    raise KeyboardInterrupt
+    raise KeyboardInterrupt  # for mode 3 out from loop
     self.final()
 
-  def final(self):
+  def final(self, renew = True):
     '''Out after calculates, unfreeze controls, print result log'''
     self.cancel = False
     self.flag = False
-    for i in [self.dab_c, self.emp_c, self.ana_c, self.sil_c, self.mat_c]:
+    for i in [self.thr_c, self.emp_c, self.ana_c, self.sil_c, self.mat_c]:
       i.config(state = 'normal')
     self.emp_f()
-    self.dab_f()
+    self.thr_f()
     self.runBut.config( text="Run test", command=self.prepare)
-    with open(os.path.join(self.path, "result", "log.txt")) as log:
-      self.preview.delete(1.0, 'end')
-      i = log.readline()
-      while i:
-        self.preview.insert('end', i)
+    if renew:
+      with open(os.path.join(self.path, "result", "log.txt")) as log:
+        self.preview.delete(1.0, 'end')
         i = log.readline()
+        while i:
+          self.preview.insert('end', i)
+          i = log.readline()
 
   def main(self):
     '''Prepare main GUI window.
@@ -225,14 +261,14 @@ class GUI:
     self.dir_list.pack(side='bottom', fill='x')
     self.dir_list.bind('<Button-1>', self.click)
 
-    self.dab_v = tk.BooleanVar()
-    self.dab_c = tk.Checkbutton(optframe, indicatoron = 1, variable = self.dab_v, onvalue = True, offvalue = False, text = "Global threshold for DAB-positive area, from 0 to 100. Optimal values are usually located from 35 to 55.\n Default 40", command = self.dab_f)
-    self.dab_c.pack(anchor = 'w')
-    self.dab_s = tk.Scale(optframe, to = 100, length = 700,  orient = 'horizontal')
-    self.dab_s['from'] = 1
-    self.dab_s.set(40)
-    self.dab_s.pack(anchor = 'e')
-    self.dab_s['state'] = 'disabled'
+    self.thr_v = tk.BooleanVar()
+    self.thr_c = tk.Checkbutton(optframe, indicatoron = 1, variable = self.thr_v, onvalue = True, offvalue = False, text = "Global threshold for DAB-positive area, from 0 to 100. Optimal values are usually located from 35 to 55.\n Default 40", command = self.thr_f)
+    self.thr_c.pack(anchor = 'w')
+    self.thr_s = tk.Scale(optframe, to = 100, length = 700,  orient = 'horizontal')
+    self.thr_s['from'] = 1
+    self.thr_s.set(40)
+    self.thr_s.pack(anchor = 'e')
+    self.thr_s['state'] = 'disabled'
     tk.Frame(optframe, height=2, bd=1, relief='sunken').pack(fill='x')
 
     self.emp_v = tk.BooleanVar()
@@ -270,7 +306,7 @@ class GUI:
     else:
       self.root.update()
       self.root.update_idletasks()
-      sleep(0.2)
+      #sleep(.01)
 
   def __init__(self, args = None):
     '''Initialization inside variables, call prepares'''
@@ -278,7 +314,7 @@ class GUI:
     self.flag = self.cancel = False
     self.main()
     if args:
-      self.args = args
+      self.args = self.parse(args)
       self.setParam()
       if self.args.path:
         self.getPath(self.args.path)
@@ -287,12 +323,5 @@ class GUI:
 
 if __name__ == '__main__':
   '''Load parameters from main file across pickled container'''
-  if len(sys.argv) > 1:
-    if sys.version_info.major == 3:
-      args = pickle.loads(sys.argv[1].encode(), encoding = 'bytes')
-    else:
-      args = pickle.loads(sys.argv[1].replace(r'\n', '\n'))
-    gui = GUI(args)
-  else:
-    gui = GUI()
+  gui = GUI(sys.argv[1:])
   gui.root.mainloop()
