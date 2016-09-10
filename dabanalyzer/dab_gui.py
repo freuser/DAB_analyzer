@@ -14,7 +14,7 @@ import argparse
 import subprocess as sp
 
 class got:
-  '''Prepare values for work in independent mode'''
+  '''Prepare values for work in independent mode. Deprecated py parse()'''
   #__module__ = os.path.splitext(os.path.basename(__file__))[0]
   '''This string for right work of pickle'''
 
@@ -177,7 +177,10 @@ class GUI:
     else:
       self.args.matrix = None
     if __name__ == '__main__':
-      if self.args.__class__.__name__ is 'got' or self.args.gui == 7:
+      if self.args.gui == 6:
+        print(ret.replace('"', ''))
+        self.root.quit()
+      else:  # gui mode 7 and autonomous running
         proc = sp.Popen([sys.executable + ' -u ' + os.path.abspath(os.path.dirname(__file__)) + "/dab_deconv_area.py " + ret.replace("+", " ")], shell=True, stdout=sp.PIPE, stderr=sp.STDOUT)
         self.preview.delete(1.0, 'end')
         self.runBack()
@@ -190,9 +193,6 @@ class GUI:
           if self.cancel:
             proc.terminate()
         self.final(False)
-      else:
-        print(ret.replace('"', ''))
-        self.root.quit()
     else:
       self.runBack()
 
@@ -306,20 +306,17 @@ class GUI:
     else:
       self.root.update()
       self.root.update_idletasks()
-      #sleep(.01)
+      sleep(.01)
 
   def __init__(self, args = None):
     '''Initialization inside variables, call prepares'''
     self.path = self.json = ''
     self.flag = self.cancel = False
     self.main()
-    if args:
-      self.args = self.parse(args)
-      self.setParam()
-      if self.args.path:
-        self.getPath(self.args.path)
-    else:
-      self.args = got()
+    self.args = self.parse(args)
+    self.setParam()
+    if self.args.path:
+      self.getPath(self.args.path)
 
 if __name__ == '__main__':
   '''Load parameters from main file across pickled container'''

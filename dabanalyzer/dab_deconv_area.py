@@ -415,7 +415,7 @@ def main():
                           run(gui.args)
                         except:
                           p.terminate()
-                          log_and_console(os.path.join(gui.args.path, "result/", "error.txt"), 'Exception in mode z1: '+str(sys.exc_info()[:2]))
+                          log_and_console(os.path.join(gui.args.path, "result/", "error.txt"), 'Exception in mode 2: '+str(sys.exc_info()[:2]))
                         p.terminate()
                     elif args.gui == 3:  # runned calculate in background mode, cancelling enabled, GUI in main mode
                         p = Process(target=run, args=(gui.args,))
@@ -436,7 +436,7 @@ def main():
                             p1._Thread_stop()
                             p0._Thread_stop()
                         except:
-                            log_and_console(os.path.join(gui.args.path, "result/", "error.txt"), 'Exception in mode z1: '+str(sys.exc_info()[:2]))
+                            log_and_console(os.path.join(gui.args.path, "result/", "error.txt"), 'Exception in mode 4: '+str(sys.exc_info()[:2]))
                     elif args.gui == 5:  # runned calculate in separate thread, GUI in main
                         p0 = th.Thread(target = run, args = (gui.args,))
                         try:
@@ -445,7 +445,7 @@ def main():
                                 gui.loop(False)
                             p0._Thread_stop()
                         except:
-                            log_and_console(os.path.join(gui.args.path, "result/", "error.txt"), 'Exception in mode z1: '+str(sys.exc_info()[:2]))
+                            log_and_console(os.path.join(gui.args.path, "result/", "error.txt"), 'Exception in mode 5: '+str(sys.exc_info()[:2]))
                     else:  # one-thread mode, runned calculate, GUI is zombie
                         run(gui.args)
                     gui.final()
