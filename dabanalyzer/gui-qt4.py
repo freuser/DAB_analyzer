@@ -4,20 +4,24 @@ import imghdr
 from time import sleep, ctime, time
 from PyQt4 import QtCore, QtGui
 
-class GUIQt(QtGui.QWidget):
+class GUIQt(QtGui.QMainWindow):
 
   def __init__(self,*args):
-    QtGui.QWidget.__init__(self,*args)
+    QtGui.QMainWindow.__init__(self,*args)
     self.setWindowTitle("DAB Analyzer")
     self.resize(800,600)
     self.time = time()
     self.dir_name = None
     self.last_path = ''
-    self.error_window = QtGui.QErrorMessage(self)
+    self.status_bar = QtGui.QStatusBar(self)
+    self.setStatusBar(self.status_bar)
 
-    grid_lay = QtGui.QGridLayout(self)
+    root = QtGui.QWidget()
+    grid_lay = QtGui.QGridLayout(root)
+    self.setCentralWidget(root)
+    self.error_window = QtGui.QErrorMessage(root)
 
-    self.box0 = QtGui.QGroupBox("", self)
+    self.box0 = QtGui.QGroupBox("", root)
     self.box0.setToolTip("Global threshold for DAB-positive area, from 0 to 100.\nOptimal values are usually located from 35 to 55.\nDefault 40.")
     self.box0.setSizePolicy(QtGui.QSizePolicy.Preferred,QtGui.QSizePolicy.Fixed)
     lay0 = QtGui.QHBoxLayout(self.box0)
@@ -38,7 +42,7 @@ class GUIQt(QtGui.QWidget):
     lay0.addWidget(self.slider_thr)
     grid_lay.addWidget(self.box0,0,0,1,8)
 
-    self.box1 = QtGui.QGroupBox("", self)
+    self.box1 = QtGui.QGroupBox("", root)
     self.box1.setToolTip("Global threshold for EMPTY area, from 0 to 100.\nDefault disabled.")
     self.box1.setSizePolicy(QtGui.QSizePolicy.Preferred,QtGui.QSizePolicy.Fixed)
     lay1 = QtGui.QHBoxLayout(self.box1)
@@ -58,15 +62,15 @@ class GUIQt(QtGui.QWidget):
     lay1.addWidget(self.slider_emp)
     grid_lay.addWidget(self.box1,1,0,2,8)
 
-    self.check_an = QtGui.QCheckBox("Analyze", self)
+    self.check_an = QtGui.QCheckBox("Analyze", root)
     self.check_an.setToolTip("Add group analysis after the indvidual image processing.\nThe groups are created using the filename.\nEverything before '_' symbol will be recognized as a group name.\nExample: sample01_10.jpg, sample01_11.jpg will be counted as a single group 'sample01'.\nDefault disabled.")
     grid_lay.addWidget(self.check_an,3,0)
 
-    self.check_sil = QtGui.QCheckBox("Silent", self)
+    self.check_sil = QtGui.QCheckBox("Silent", root)
     self.check_sil.setToolTip("Supress figure rendering during the analysis,\nonly final results will be saved.\nDefault disabled.")
     grid_lay.addWidget(self.check_sil,4,0)
 
-    self.box2 = QtGui.QGroupBox("", self)
+    self.box2 = QtGui.QGroupBox("", root)
     self.box2.setToolTip("Your matrix in a JSON formatted file.\nExperimental option.\nDefault use built-in.")
     lay2 = QtGui.QVBoxLayout(self.box2)
     self.check_mat = QtGui.QCheckBox("Matrix", self.box2)
@@ -76,7 +80,11 @@ class GUIQt(QtGui.QWidget):
     lay2.addWidget(self.label_json)
     grid_lay.addWidget(self.box2,3,1,2,7)
 
-    self.box3 = QtGui.QGroupBox("", self)
+    self.user_frame = QtGui.QFrame(root)
+    lay5 = QtGui.QVBoxLayout(self.user_frame)
+
+    self.user_frame.setFrameShape(QtGui.QFrame.NoFrame)
+    self.box3 = QtGui.QGroupBox("", self.user_frame)
     self.box3.setSizePolicy(QtGui.QSizePolicy.Preferred,QtGui.QSizePolicy.Preferred)
     lay3 = QtGui.QVBoxLayout(self.box3)
     self.open_dir = QtGui.QPushButton('Open directory', self.box3)
@@ -92,25 +100,26 @@ class GUIQt(QtGui.QWidget):
     lay3.addWidget(self.open_dir)
     lay3.addWidget(self.label_dir)
     lay3.addWidget(self.list_dir)
-    grid_lay.addWidget(self.box3,5,0,6,4)
 
-    box4 = QtGui.QGroupBox("", self)
+    box4 = QtGui.QGroupBox("", self.user_frame)
     lay4 = QtGui.QVBoxLayout(box4)
     self.run_button = QtGui.QPushButton('Run test', box4)
     self.run_button.clicked.connect(self.stub)
-    self.image_box = QtGui.QGroupBox("", box4)
-    image_lay = QtGui.QVBoxLayout(self.image_box)
-    self.image_stats = QtGui.QLabel(self.image_box)
+    self.image_field = QtGui.QLabel(box4)
     self.image_view = QtGui.QPixmap()
-    self.image_stats.setPixmap(self.image_view)
-    self.log_output_field = QtGui.QTextEdit(self.image_box)
+    self.image_field.setPixmap(self.image_view)
+    self.log_output_field = QtGui.QTextEdit()
     self.log_output_field.setReadOnly(True)
-    image_lay.addWidget(self.image_stats)
-    self.image_stats.setVisible(False)
-    image_lay.addWidget(self.log_output_field)
     lay4.addWidget(self.run_button)
-    lay4.addWidget(self.image_box)
-    grid_lay.addWidget(box4,5,4,6,5)
+    lay4.addWidget(self.image_field)
+    self.image_field.setVisible(False)
+    lay4.addWidget(self.log_output_field)
+
+    split = QtGui.QSplitter(1)
+    split.addWidget(self.box3)
+    split.addWidget(box4)
+    lay5.addWidget(split)
+    grid_lay.addWidget(self.user_frame,5,0,6,8)
 
     grid_lay.setRowStretch(5,1)
     grid_lay.setColumnStretch(3,2)
@@ -134,24 +143,23 @@ class GUIQt(QtGui.QWidget):
       return
     number = self.list_dir.currentRow()
     name = self.list_dir.item(number).text()
-    if self.image_box.title().startswith(name):
-      self.image_box.setTitle("")
-      self.image_stats.setVisible(False)
+    if self.status_bar.currentMessage().startswith(name):
+      self.status_bar.showMessage("")
+      self.image_field.setVisible(False)
       self.log_output_field.setVisible(True)
     else:
       if self.log_output_field.isVisible():
         self.log_output_field.setVisible(False)
-        self.image_stats.setVisible(True)
+        self.image_field.setVisible(True)
       full_name = os.path.join(self.dir_name, name)
       stat = os.stat(full_name)
       size = self.greek(stat.st_size)
       create_time = ctime(stat.st_mtime)
-      self.image_box.setTitle(name + ", " + size + ", " + create_time)
-      self.image_box.update()
+      self.status_bar.showMessage(name + ", " + size + ", " + create_time)
       self.image_view.load(full_name)
-      rect = QtCore.QSize(self.image_stats.width(),self.image_stats.height())
+      rect = QtCore.QSize(self.image_field.width(),self.image_field.height())
       self.image_view = self.image_view.scaled(rect, 1)
-      self.image_stats.setPixmap(self.image_view)
+      self.image_field.setPixmap(self.image_view)
       self.time = time()
 
   def greek(self, size):
@@ -206,10 +214,10 @@ class GUIQt(QtGui.QWidget):
 
   def showLog(self, log):
     if not self.log_output_field.isVisible():
-      self.image_stats.setVisible(False)
+      self.image_field.setVisible(False)
       self.log_output_field.setVisible(True)
     self.log_output_field.setText(log)
-    self.image_box.setTitle("")
+    self.status_bar.showMessage("")
 
   def getPath(self):
     if not self.dir_name:
